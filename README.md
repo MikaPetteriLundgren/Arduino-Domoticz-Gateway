@@ -8,9 +8,9 @@ the Domoticz via the MQTT protocol. The MQTT server delivers data to Domoticz se
 
 More information about Arduino based temp and temp + hum loggers can be found via following links:
 
-[Temp logger](https://github.com/MikaPetteriLundgren/Arduino-Temp-Logger)
+[Arduino-Temp-Logger](https://github.com/MikaPetteriLundgren/Arduino-Temp-Logger)
 
-[Temp and hum logger](https://github.com/MikaPetteriLundgren/Arduino-Temp-Hum-Logger)
+[Arduino-Temp-Hum-Logger](https://github.com/MikaPetteriLundgren/Arduino-Temp-Hum-Logger)
  
 Arduino-Domoticz-Gateway sketch will need following HW and SW libraries to work:
 
