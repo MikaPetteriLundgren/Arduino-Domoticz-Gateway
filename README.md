@@ -6,6 +6,8 @@ Received data is parsed and send to MQTT server, using MQTT protocol, running on
 The Domoticz gateway also measures temperature from DS18B20 digital temperature sensor. Measured temperature values are sent to
 the Domoticz via the MQTT protocol. The MQTT server delivers data to Domoticz server running on a same Raspberry Pi.
 
+More information about the system can be found from [Domoticz forum](http://www.domoticz.com/forum/viewtopic.php?f=38&t=7389)
+
 More information about Arduino based temp and temp + hum loggers can be found via following links:
 
 [Arduino-Temp-Logger](https://github.com/MikaPetteriLundgren/Arduino-Temp-Logger)
