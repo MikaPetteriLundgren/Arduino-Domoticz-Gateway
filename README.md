@@ -35,7 +35,7 @@ Arduino-Domoticz-Gateway sketch will need following HW and SW libraries to work:
 **HW connections**
 
 Temperature readings are read from DS18B20 digital temperature sensor via OneWire bus.
-TX433N RF receiver is connected to the Arduino via single GPIO pin.
+RX433N RF receiver is connected to the Arduino via single GPIO pin.
 
 This repository includes also breadboard and schematics pictures in PDF and Fritzing formats.
 
