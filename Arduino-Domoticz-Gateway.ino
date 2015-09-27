@@ -1,6 +1,6 @@
 /*Arduino based Domoticz gateway receives messages from Arduino temp and temp + hum loggers via 433MHz RF link.
   Received data is parsed and send to MQTT server, using MQTT protocol, running on a Raspberry Pi via ethernet.
-  The Domoticz gateway also measures temperature from DS18B20 digital temperature sensor. Measured temperature values are send to
+  The Arduino Domoticz Gateway also measures temperature from DS18B20 digital temperature sensor. Measured temperature values are send to
   the Domoticz via the MQTT protocol. The MQTT server delivers data to Domoticz server running on a same Raspberry Pi.
  */
 
@@ -14,11 +14,10 @@
 #include <TimeAlarms.h>
 
 // Variables used to store received data
-char *topicID; // MQTT topicID
 char *temp; // Received temperature data will be stored to this variable
 char *hum; // Received humidity data will be stored to this variable
-char *dtype; // Received dtype (device type) will be stored to this variable
-int deviceType = 0; // deviceType is a int value converted from *type pointer variable
+int receivedIDX = 0; // Received IDX number will be stored to this variable
+int dtype = 0; // Received dtype will be stored to this variable
 
 // HW settings
 const int RxLed = 13; // RxLed will be lit when RX433N received valid data
@@ -30,18 +29,20 @@ EthernetClient ethernetClient;
 int mqttConnectionFails = 0; // If MQTT connection is disconnected for some reason, this variable is increment by 1
 
 //MQTT configuration
-#define  DEVICE_ID  "Uno"
-#define MQTT_SERVER "192.168.1.2" // IP address of MQTT server. CHANGE THIS TO CORRECT ONE!
+#define DEVICE_ID  "Uno"
+#define MQTT_SERVER "192.168.1.93" // IP address of MQTT server. CHANGE THIS TO CORRECT ONE
+char topic[] = "domoticz/in"; // Default incoming topic in Domoticz is domoticz/in
+int temperatureSensordtype = 80; // dtype (device type for temperature sensor) is used to help creating MQTT payload
 
 //MQTT initialisation
 PubSubClient mqttClient(MQTT_SERVER, 1883, sensorCallback, ethernetClient);
 char clientID[50];
-char topic[50];
 char msg[80];
 
 //Temperature measurement configuration
 const unsigned int tempMeasInterval = 1800; // Set temperature measurement interval in seconds. Default value 1800s (30min)
 float temperature = 0; // Measured temperature value is stored to this variable
+const int tempSensorIDX = 530; // IDX number of temperature sensor connected to this device
 
 // OneWire and Dallas temperature sensors library are initialised
 #define ONE_WIRE_BUS 7 // OneWire data wire is plugged into pin 7 on the Arduino. Parasite powering scheme is used.
@@ -72,6 +73,8 @@ void setup()
   clientIDStr.toCharArray(clientID, clientIDStr.length()+1);
 
   //MQTT connection is established
+  Serial.print(F("MQTT client ID: "));
+  Serial.println(clientID);
   mqttClient.connect(clientID) ? Serial.println("MQTT client connected") : Serial.println("MQTT client connection failed..."); //condition ? valueIfTrue : valueIfFalse - This is a Ternary operator
 
   // Start up the Dallas temperature library
@@ -89,7 +92,7 @@ void loop()
 	uint8_t buf[VW_MAX_MESSAGE_LEN];
 	uint8_t buflen = VW_MAX_MESSAGE_LEN;
 
-    // If there are incoming bytes available from the server, read them and print them out.
+  // If there are incoming bytes available from the server, read them and print them out.
 	// This is for debugging purposes only. Not needed with current sketch.
 	/*
     while(ethernetClient.available())
@@ -116,27 +119,26 @@ void loop()
 		Serial.println();
 		digitalWrite(RxLed, LOW);
 
-		char *rest; // help variable
+		char *rest; // Help variable needed with following iterations
 
 		Serial.println("Starting parsing received data...");
 
-		//  First strtok iteration. Parses topicID out from the received data.
-		topicID = strtok_r((char*)buf,":",&rest);
-		Serial.print("topicID = ");
-		Serial.println(topicID);
+		//  First strtok iteration. Parses IDX number out from the received data.
+		receivedIDX = atoi (strtok_r((char*)buf,":",&rest)); // Received IDX is converted to int with atoi function in order to use it as constructor parameter and with switch structure
+		Serial.print("IDX = ");
+		Serial.println(receivedIDX);
 
 		//  Second strtok iteration. Parses dtype out from the received data.
-		dtype = strtok_r(NULL,":",&rest);
+		dtype = atoi (strtok_r(NULL,":",&rest)); // Received dtype is converted to int with atoi function in order to use it as constructor parameter and with switch structure
 		Serial.print("dtype = ");
 		Serial.println(dtype);
-		deviceType = atoi (dtype); // dtype is converted to int in order to use it with switch structure below and other functions
 
 		//  Third strtok iteration. Parses temperature out from the received data.
 		temp = strtok_r(NULL,":",&rest);
 		Serial.print("temp = ");
 		Serial.println(temp);
 
-		if (deviceType == 82) // Humidity to be parsed only from combined temp & hum sensors
+		if (dtype == 82) // Humidity to be parsed only from combined temp & hum sensors
 		{
 			//  Fourth strtok iteration. Parses humidity out from the received data.
 			hum = strtok_r(NULL,":",&rest);
@@ -147,7 +149,7 @@ void loop()
 		Serial.println("Received data parsed...");
 
 		//Send data to MQTT broker running on a Raspberry Pi
-		sendMQTTPayload(createMQTTPayload());
+    sendMQTTPayload(createMQTTPayload(receivedIDX, dtype)); //Send data to MQTT broker running on a Raspberry Pi
 
 		#if defined RAM_DEBUG
 		Serial.print(F("Amount of free RAM memory: "));
@@ -177,55 +179,47 @@ void tempFunction() // Function tempFunction reads temperature from DS18B20 sens
   Serial.print(temperature);
   Serial.println(F("DegC"));
 
-  topicID = "Meriroom";
-  dtype = "80";
-  deviceType = atoi (dtype); // dtype is converted to int in order to use it with switch structure below and other functions
-
   //Measured temperature (float) is converted to char array
   char charVal[10];	//Temporarily holds data for dtostrf function
   dtostrf(temperature, 4, 1, charVal);  //4 is minimum width, 1 is precision; float value is copied into buff
   temp = charVal;
 
   //Send data to MQTT broker running on a Raspberry Pi
-  sendMQTTPayload(createMQTTPayload());
+  sendMQTTPayload(createMQTTPayload(tempSensorIDX, temperatureSensordtype)); //Send data to MQTT broker running on a Raspberry Pi
 }
 
-String createMQTTPayload() //Create MQTT message payload. Returns created message as a String.
+String createMQTTPayload(int idx, int deviceType) //Create MQTT message payload. Returns created message as a String.
 {
+  String dataMsg = "{\"idx\":";
+  dataMsg.concat(idx);
+  dataMsg.concat(F(",\"nvalue\":0"));
 
-	String dataMsg = "{\"dunit\":1,";
-	dataMsg.concat(F("\"dtype\":"));
+  switch (deviceType)
+    {
+    case 80: // Temperature sensor.
+        dataMsg.concat(F(",\"svalue\":\""));
+        dataMsg.concat(temp);
+        dataMsg.concat("\"}");
+        break;
 
-	switch (deviceType)
-	  {
-		case 82: // Combined temperature and humidity sensor
-	    	dataMsg.concat(dtype);
-	    	dataMsg.concat(F(",\"dsubtype\":1,"));
-	    	dataMsg.concat(F("\"svalue\":\""));
-	    	dataMsg.concat(temp);
-	    	dataMsg.concat(F(";"));
-	    	dataMsg.concat(hum);
-	    	dataMsg.concat(F(";0"));
-	    	break;
+    case 82: // Temperature & humidity sensor
+        dataMsg.concat(F(",\"svalue\":\""));
+        dataMsg.concat(temp);
+        dataMsg.concat(F(";"));
+        dataMsg.concat(hum);
+        dataMsg.concat(F(";0"));
+        dataMsg.concat("\"}");
+        break;
 
-		case 80: // Temperature sensor
-			dataMsg.concat(dtype);
-	    	dataMsg.concat(F(",\"dsubtype\":1,"));
-	    	dataMsg.concat(F("\"svalue\":\""));
-	    	dataMsg.concat(temp);
-	    	break;
+    default: // If dtype is unknown, then default case to be used. Default case is a temperature sensor.
+      Serial.println(F("Unknown dtype received. Default procedure to be done."));
+        dataMsg.concat(F(",\"svalue\":\""));
+        dataMsg.concat(temp);
+        dataMsg.concat("\"}");
+        break;
+    }
 
-		default: // If dtype is unknown, then default case to be used. Default case is a temperature sensor.
-			Serial.println("Unknown dtype received. Default procedure to be done.");
-			dataMsg.concat(dtype);
-	    	dataMsg.concat(F(",\"dsubtype\":1,"));
-	    	dataMsg.concat(F("\"svalue\":\""));
-	    	dataMsg.concat(temp);
-	    	break;
-	  }
-
-	dataMsg.concat(F("\"}"));
-	return dataMsg;
+  return dataMsg;
 }
 
 void sendMQTTPayload(String payload) // Sends MQTT payload to the Mosquitto server running on a Raspberry Pi.
@@ -246,11 +240,6 @@ void sendMQTTPayload(String payload) // Sends MQTT payload to the Mosquitto serv
     		startEthernet();
     	}
     }
-
-    // Create MQTT topic and convert it to char array
-	String topicStr = "/actions/domoticz/";
-	topicStr.concat(topicID);
-	topicStr.toCharArray(topic, topicStr.length()+1);
 
 	// Convert payload to char array
 	payload.toCharArray(msg, payload.length()+1);
