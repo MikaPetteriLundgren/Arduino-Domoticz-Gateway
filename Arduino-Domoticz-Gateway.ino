@@ -34,8 +34,11 @@ int mqttConnectionFails = 0; // If MQTT connection is disconnected for some reas
 char topic[] = "domoticz/in"; // Default incoming topic in Domoticz is domoticz/in
 int temperatureSensordtype = 80; // dtype (device type for temperature sensor) is used to help creating MQTT payload
 
+// MQTT callback function header
+void mqttCallback(char* topic, byte* payload, unsigned int length);
+
 //MQTT initialisation
-PubSubClient mqttClient(MQTT_SERVER, 1883, sensorCallback, ethernetClient);
+PubSubClient mqttClient(MQTT_SERVER, 1883, mqttCallback, ethernetClient);
 char clientID[50];
 char msg[80];
 
@@ -300,4 +303,4 @@ int memoryFree() //Function to return the amount of free RAM
 
 /* Handles message arrived on subscribed topic(s).
    In this sketch we do not subscribe to any topics, so this is a dummy method*/
-void sensorCallback(char* topic, byte* payload, unsigned int length) { }
+void mqttCallback(char* topic, byte* payload, unsigned int length) { }
