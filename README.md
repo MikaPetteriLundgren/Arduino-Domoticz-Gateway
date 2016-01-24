@@ -3,8 +3,10 @@ Arduino-Domoticz-Gateway
 
 Arduino based Domoticz gateway receives messages from Arduino temp and temp + hum loggers via 433MHz RF link.
 Received data is parsed and send to MQTT server, using MQTT protocol, running on a Raspberry Pi via ethernet.
-The Domoticz gateway also measures temperature from DS18B20 digital temperature sensor. Measured temperature values are sent to
+The Domoticz gateway also measures temperature with DS18B20 digital temperature sensor. Measured temperature values are sent to
 the Domoticz via the MQTT protocol. The MQTT server delivers data to Domoticz server running on a same Raspberry Pi.
+
+The sketch needs domoticzGatewaySettings.h header file in order to work. The header file includes settings for the sketch.
 
 More information about the system can be found from [Domoticz forum](http://www.domoticz.com/forum/viewtopic.php?f=38&t=7389)
 

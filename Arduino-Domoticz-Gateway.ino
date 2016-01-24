@@ -1,9 +1,12 @@
 /*Arduino based Domoticz gateway receives messages from Arduino temp and temp + hum loggers via 433MHz RF link.
   Received data is parsed and send to MQTT server, using MQTT protocol, running on a Raspberry Pi via ethernet.
-  The Arduino Domoticz Gateway also measures temperature from DS18B20 digital temperature sensor. Measured temperature values are send to
+  The Arduino Domoticz Gateway also measures temperature with DS18B20 digital temperature sensor. Measured temperature values are send to
   the Domoticz via the MQTT protocol. The MQTT server delivers data to Domoticz server running on a same Raspberry Pi.
+
+  The sketch needs domoticzGatewaySettings.h header file in order to work. The header file includes settings for the sketch.
  */
 
+#include "domoticzGatewaySettings.h" // Header file containing settings for the sketch included. 
 #include <VirtualWire.h>
 #include <SPI.h>
 #include <Ethernet.h>
@@ -29,8 +32,6 @@ EthernetClient ethernetClient;
 int mqttConnectionFails = 0; // If MQTT connection is disconnected for some reason, this variable is increment by 1
 
 //MQTT configuration
-#define DEVICE_ID  "Uno"
-#define MQTT_SERVER "192.168.1.93" // IP address of MQTT server. CHANGE THIS TO CORRECT ONE
 char topic[] = "domoticz/in"; // Default incoming topic in Domoticz is domoticz/in
 int temperatureSensordtype = 80; // dtype (device type for temperature sensor) is used to help creating MQTT payload
 
@@ -38,14 +39,14 @@ int temperatureSensordtype = 80; // dtype (device type for temperature sensor) i
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 
 //MQTT initialisation
-PubSubClient mqttClient(MQTT_SERVER, 1883, mqttCallback, ethernetClient);
+PubSubClient mqttClient(MQTT_SERVER, 1883, mqttCallback, ethernetClient); // MQTT_SERVER constructor parameter is defined in domoticzGatewaySettings.h header file
 char clientID[50];
 char msg[80];
 
 //Temperature measurement configuration
 const unsigned int tempMeasInterval = 1800; // Set temperature measurement interval in seconds. Default value 1800s (30min)
 float temperature = 0; // Measured temperature value is stored to this variable
-const int tempSensorIDX = 530; // IDX number of temperature sensor connected to this device
+const int tempSensorIDX = TEMPSENSORIDX; // IDX number of temperature sensor connected to this device. IDX value is defined in domoticzGatewaySettings.h header file.
 
 // OneWire and Dallas temperature sensors library are initialised
 #define ONE_WIRE_BUS 7 // OneWire data wire is plugged into pin 7 on the Arduino. Parasite powering scheme is used.
@@ -72,7 +73,7 @@ void setup()
 
   //Create MQTT client String
   String clientIDStr = "Arduino-";
-  clientIDStr.concat(DEVICE_ID);
+  clientIDStr.concat(DEVICE_ID); // DEVICE_ID is defined in domoticzGatewaySettings.h header file
   clientIDStr.toCharArray(clientID, clientIDStr.length()+1);
 
   //MQTT connection is established
